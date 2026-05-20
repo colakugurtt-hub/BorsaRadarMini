@@ -1,0 +1,49 @@
+name: Build APK From ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: List repo files
+        run: ls -lah
+
+      - name: Unzip source package
+        run: |
+          unzip -o BorsaRadarMini_AutoAPK_GitHubActions_v1.zip
+          ls -lah
+
+      - name: Find project folder
+        run: |
+          find . -maxdepth 3 -type f -name "settings.gradle" -print
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        run: |
+          cd BorsaRadarMini_Android_AutoAPK_GitHubActions_v1
+          gradle :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BorsaRadarMini-debug-apk
+          path: BorsaRadarMini_Android_AutoAPK_GitHubActions_v1/app/build/outputs/apk/debug/app-debug.apk
