@@ -1,10 +1,12 @@
-name: Build APK From ZIP
+name: Build APK from ZIP
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -15,18 +17,36 @@ jobs:
         uses: actions/checkout@v4
 
       - name: List repo files
-        run: ls -lah
+        run: |
+          pwd
+          ls -la
 
       - name: Unzip source package
         run: |
-          unzip -o BorsaRadarMini_AutoAPK_GitHubActions_v1.zip
-          ls -lah
+          ZIP_FILE="BorsaRadarMini_AutoAPK_GitHubActions_v1.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ZIP bulunamadı: $ZIP_FILE"
+            ls -la
+            exit 1
+          fi
+          rm -rf BorsaRadarMini_Android_AutoAPK_GitHubActions_v1
+          unzip -q "$ZIP_FILE"
+          echo "ZIP açıldı."
+          ls -la
 
       - name: Find project folder
         run: |
-          find . -maxdepth 3 -type f -name "settings.gradle" -print
+          PROJECT_DIR=$(find . -maxdepth 4 -name "settings.gradle" -printf '%h\n' | head -n 1)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "settings.gradle bulunamadı."
+            find . -maxdepth 4 -type f | sort
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Proje klasörü: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
 
-      - name: Set up JDK
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -34,16 +54,15 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
 
       - name: Build debug APK
         run: |
-          cd BorsaRadarMini_Android_AutoAPK_GitHubActions_v1
-          gradle :app:assembleDebug
+          cd "$PROJECT_DIR"
+          gradle :app:assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BorsaRadarMini-debug-apk
-          path: BorsaRadarMini_Android_AutoAPK_GitHubActions_v1/app/build/outputs/apk/debug/app-debug.apk
+          name: BorsaRadarMini-v2-debug-apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 3
